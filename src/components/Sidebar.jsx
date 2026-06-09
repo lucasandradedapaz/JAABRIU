@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import logo from "../assets/jaabriu.png";
+import logo from "../assets/jaabriu-branco.png";
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -17,14 +17,15 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 h-screen bg-slate-900 fixed left-0 top-0 flex flex-col">
-      <div className="mb-10 flex justify-center">
-  
-  <img
-    src={logo}
-    alt="JaAbriu"
-    className="w-30 object-contain"
-  />
-</div>
+  <div className="mb-10 flex justify-center mt-4">
+
+    <img
+      src={logo}
+      alt="JaAbriu"
+      className="w-28 h-28 rounded-full object-cover"
+    />
+
+  </div>
 
       <nav className="flex flex-col gap-2 p-4 flex-1">
         <Link
@@ -69,7 +70,7 @@ export default function Sidebar() {
           onClick={handleLogout}
           className="w-full bg-red-500 hover:bg-red-600 transition rounded-xl py-3 font-medium"
         >
-          Logout
+          Sair
         </button>
       </div>
     </aside>

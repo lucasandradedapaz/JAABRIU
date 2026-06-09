@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
-import logo from "../../assets/jaabriu.png";
+import logo from "../../assets/jaabriu-branco.png";
 
 export default function Login() {
   const navigate = useNavigate();
