@@ -60,7 +60,7 @@ export default function Historico() {
     <div className="flex bg-slate-100 min-h-screen">
       <Sidebar />
 
-      <main className="ml-64 p-8 w-full">
+      <main className="md:ml-64 p-4 pt-20 md:p-8 md:pt-8 w-full">
         <h1 className="text-3xl font-bold mb-8">Histórico Geral</h1>
 
         {loading ? (

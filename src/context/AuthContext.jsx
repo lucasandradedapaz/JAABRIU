@@ -14,12 +14,14 @@ export function AuthProvider({ children }) {
     try {
       const response = await api.get("/usuarios/me");
       setUser(response.data);
+      return response.data;
     } catch (error) {
       console.log("Erro ao carregar perfil logado:", error);
       // token inválido/expirado -> desloga
       localStorage.removeItem("token");
       setToken(null);
       setUser(null);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -29,7 +31,9 @@ export function AuthProvider({ children }) {
     localStorage.setItem("token", newToken);
     setToken(newToken);
     setLoading(true);
-    await carregarPerfil();
+    // retorna o perfil recém-carregado para quem chamou (ex: tela de login)
+    // decidir para onde navegar de acordo com o tipo de usuário.
+    return await carregarPerfil();
   }
 
   function logout() {
@@ -45,6 +49,10 @@ export function AuthProvider({ children }) {
 
   function isTecnico() {
     return user?.perfil === "TECNICO";
+  }
+
+  function isUsuario() {
+    return user?.perfil === "USUARIO";
   }
 
   function podeGerenciarChamados() {
@@ -71,6 +79,7 @@ export function AuthProvider({ children }) {
         logout,
         isAdmin,
         isTecnico,
+        isUsuario,
         podeGerenciarChamados,
         recarregarPerfil: carregarPerfil,
       }}

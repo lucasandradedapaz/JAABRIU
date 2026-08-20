@@ -17,8 +17,9 @@ const PRIORIDADE_LABEL = {
 
 export default function NovoChamado() {
   const navigate = useNavigate();
-  const { podeGerenciarChamados } = useAuth();
+  const { podeGerenciarChamados, isUsuario } = useAuth();
   const podeDefinirPrioridade = podeGerenciarChamados();
+  const ehUsuarioComum = isUsuario();
 
   const [form, setForm] = useState({
     titulo: "",
@@ -74,7 +75,7 @@ export default function NovoChamado() {
     <div className="flex bg-slate-100 min-h-screen">
       <Sidebar />
 
-      <main className="ml-64 w-full">
+      <main className="md:ml-64 w-full">
         <Header titulo="Novo Chamado" />
 
         <div className="p-8">
@@ -88,11 +89,12 @@ export default function NovoChamado() {
 
                 <div>
                   <h2 className="text-2xl font-bold text-slate-800">
-                    Abrir Novo Chamado
+                    {ehUsuarioComum ? "Abrir um chamado" : "Abrir Novo Chamado"}
                   </h2>
                   <p className="text-slate-500">
-                    Informe os detalhes do problema para registrar um novo
-                    atendimento.
+                    {ehUsuarioComum
+                      ? "Conte pra gente o que está acontecendo. Nossa equipe vai te ajudar o quanto antes."
+                      : "Informe os detalhes do problema para registrar um novo atendimento."}
                   </p>
                 </div>
               </div>
@@ -102,7 +104,7 @@ export default function NovoChamado() {
                 <div>
                   <label className="flex items-center gap-2 font-medium text-slate-700 mb-2">
                     <FileText size={18} />
-                    Título
+                    {ehUsuarioComum ? "Resuma em poucas palavras" : "Título"}
                   </label>
 
                   <input
@@ -120,7 +122,7 @@ export default function NovoChamado() {
                 <div>
                   <label className="flex items-center gap-2 font-medium text-slate-700 mb-2">
                     <FileText size={18} />
-                    Descrição detalhada
+                    {ehUsuarioComum ? "O que está acontecendo?" : "Descrição detalhada"}
                   </label>
 
                   <textarea
@@ -128,7 +130,11 @@ export default function NovoChamado() {
                     value={form.descricao}
                     onChange={handleChange}
                     rows={7}
-                    placeholder="Descreva detalhadamente o problema, quando começou, mensagens de erro e impacto."
+                    placeholder={
+                      ehUsuarioComum
+                        ? "Descreva seu problema... quando começou, o que você já tentou fazer."
+                        : "Descreva detalhadamente o problema, quando começou, mensagens de erro e impacto."
+                    }
                     className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 resize-none outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
                     required
                   />

@@ -164,7 +164,7 @@ export default function Usuarios() {
     <div className="flex bg-slate-100 min-h-screen">
       <Sidebar />
 
-      <main className="ml-64 w-full">
+      <main className="md:ml-64 w-full">
         <Header
           titulo="Cadastro de Usuários"
           subtitulo="Gerencie quem tem acesso ao sistema e qual o nível de permissão de cada um."

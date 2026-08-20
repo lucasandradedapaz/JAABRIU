@@ -23,7 +23,7 @@ export default function AppRoutes() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["ADMIN", "TECNICO"]}>
               <Dashboard />
             </ProtectedRoute>
           }
@@ -59,7 +59,7 @@ export default function AppRoutes() {
         <Route
           path="/historico"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["ADMIN", "TECNICO"]}>
               <Historico />
             </ProtectedRoute>
           }

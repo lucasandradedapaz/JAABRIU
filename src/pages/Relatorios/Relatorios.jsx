@@ -281,7 +281,7 @@ export default function Relatorios() {
     <div className="flex bg-slate-50 min-h-screen">
       <Sidebar />
 
-      <main className="ml-64 w-full print:ml-0">
+      <main className="md:ml-64 w-full print:ml-0">
         <div className="print:hidden">
           <Header
             titulo="Relatórios"

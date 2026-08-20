@@ -21,9 +21,11 @@ export default function ProtectedRoute({ children, roles }) {
     );
   }
 
-  // Rota restrita a determinados perfis
+  // Rota restrita a determinados perfis.
+  // Usuário comum não tem "home" no dashboard — a home dele é abrir chamado.
   if (roles && roles.length > 0 && user && !roles.includes(user.perfil)) {
-    return <Navigate to="/dashboard" replace />;
+    const home = user.perfil === "USUARIO" ? "/novo-chamado" : "/dashboard";
+    return <Navigate to={home} replace />;
   }
 
   return children;

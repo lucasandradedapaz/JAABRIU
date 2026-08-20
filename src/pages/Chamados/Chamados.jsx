@@ -9,8 +9,11 @@ import {
 } from "lucide-react";
 import api from "../../services/api";
 import Sidebar from "../../components/Sidebar";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Chamados() {
+  const { isUsuario } = useAuth();
+  const ehUsuarioComum = isUsuario();
   const [chamados, setChamados] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -83,16 +86,18 @@ export default function Chamados() {
     <div className="flex bg-slate-100 min-h-screen">
       <Sidebar />
 
-      <main className="ml-64 w-full p-8">
+      <main className="md:ml-64 w-full p-4 pt-20 md:p-8 md:pt-8">
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-2">
               <Ticket size={28} />
-              Chamados
+              {ehUsuarioComum ? "Meus chamados" : "Chamados"}
             </h1>
             <p className="text-slate-500 mt-1">
-              Gerencie e acompanhe todos os chamados do sistema
+              {ehUsuarioComum
+                ? "Acompanhe o andamento dos seus chamados"
+                : "Gerencie e acompanhe todos os chamados do sistema"}
             </p>
           </div>
 
@@ -101,7 +106,7 @@ export default function Chamados() {
             className="bg-blue-600 hover:bg-blue-700 transition text-white px-5 py-3 rounded-xl font-medium flex items-center gap-2 shadow"
           >
             <Plus size={18} />
-            Novo Chamado
+            {ehUsuarioComum ? "Abrir chamado" : "Novo Chamado"}
           </Link>
         </div>
 
@@ -109,7 +114,7 @@ export default function Chamados() {
         <div className="bg-white rounded-2xl shadow-sm border p-6 mb-8">
           <div className="flex items-center gap-2 mb-4">
             <Filter size={18} />
-            <h2 className="font-semibold text-slate-700">Filtros</h2>
+            <h2 className="font-semibold text-slate-700">Filtrar</h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-4">
@@ -180,14 +185,16 @@ export default function Chamados() {
                     </p>
 
                     <div className="mt-4 text-sm text-slate-500 space-y-1">
-                      <p>
-                        <strong>Usuário:</strong>{" "}
-                        {chamado.usuarioNome || "Não informado"}
-                      </p>
+                      {!ehUsuarioComum && (
+                        <p>
+                          <strong>Usuário:</strong>{" "}
+                          {chamado.usuarioNome || "Não informado"}
+                        </p>
+                      )}
 
                       <p>
                         <strong>Técnico:</strong>{" "}
-                        {chamado.tecnicoNome || "Não atribuído"}
+                        {chamado.tecnicoNome || "Ainda não atribuído"}
                       </p>
                     </div>
                   </div>
