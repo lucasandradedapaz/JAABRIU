@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, MessageSquare, Loader } from "lucide-react";
+import { Send, MessageSquare, Loader, Wifi, WifiOff } from "lucide-react";
 import api from "../services/api";
 import { toast } from "react-toastify";
 import Avatar from "./Avatar";
-import { useAuth } from "../context/AuthContext";
+import { useChamadoSocket } from "../hooks/useChamadoSocket";
 
 const PERFIL_LABEL = {
   ADMIN: "Administrador",
@@ -12,30 +12,36 @@ const PERFIL_LABEL = {
 };
 
 export default function Comentarios({ chamadoId, podeComentar = true }) {
-  const { user } = useAuth();
   const [comentarios, setComentarios] = useState([]);
   const [mensagem, setMensagem] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [carregando, setCarregando] = useState(true);
-  const fimDaConversaRef = useRef(null);
 
-  async function carregarComentarios({ manterScroll = false } = {}) {
+  const fimDaListaRef = useRef(null);
+
+  async function carregarComentarios() {
     try {
       const response = await api.get(`/chamados/${chamadoId}/comentarios`);
-      setComentarios(response.data || []);
-      if (!manterScroll) {
-        // rolagem automática para a mensagem mais recente
-        setTimeout(() => {
-          fimDaConversaRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 50);
-      }
+      // backend retorna do mais novo pro mais antigo; pra chat, queremos o
+      // contrário (mais antiga em cima, mais recente embaixo)
+      const ordenados = [...(response.data || [])].reverse();
+      setComentarios(ordenados);
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao carregar conversa");
+      toast.error("Erro ao carregar comentários");
     } finally {
       setCarregando(false);
     }
   }
+
+  // Tempo real: qualquer mensagem nova (de qualquer um dos envolvidos)
+  // chega aqui automaticamente, sem precisar de F5.
+  const { conectado } = useChamadoSocket(chamadoId, (novaMensagem) => {
+    setComentarios((atual) => {
+      if (atual.some((c) => c.id === novaMensagem.id)) return atual;
+      return [...atual, novaMensagem];
+    });
+  });
 
   async function enviarComentario(e) {
     e.preventDefault();
@@ -47,14 +53,17 @@ export default function Comentarios({ chamadoId, podeComentar = true }) {
         mensagem,
         interno: false,
       });
-
       setMensagem("");
-      await carregarComentarios();
-      toast.success("Mensagem enviada.");
+      // a própria mensagem enviada normalmente chega de volta via WebSocket
+      // (o broadcast inclui o remetente); se a conexão em tempo real caiu
+      // bem nesse momento, busca a lista de novo pra não "perder" a mensagem
+      if (!conectado) {
+        await carregarComentarios();
+      }
     } catch (error) {
       console.error(error);
       toast.error(
-        error?.response?.data?.mensagem || "Erro ao enviar mensagem"
+        error?.response?.data?.mensagem || "Erro ao enviar comentário"
       );
     } finally {
       setEnviando(false);
@@ -69,139 +78,120 @@ export default function Comentarios({ chamadoId, podeComentar = true }) {
     });
   }
 
-  function formatarDiaSeparador(data) {
-    if (!data) return "";
-    return new Date(data).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "long",
-    });
-  }
-
   useEffect(() => {
-    setCarregando(true);
     carregarComentarios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chamadoId]);
 
-  // Agrupa por dia para exibir separadores tipo "17 de agosto" na conversa.
-  let ultimoDia = null;
+  useEffect(() => {
+    fimDaListaRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [comentarios.length]);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm ring-1 ring-slate-200 flex flex-col overflow-hidden">
-      <div className="px-6 sm:px-8 pt-6 sm:pt-8 pb-4 border-b border-slate-100">
-        <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-          <MessageSquare size={18} className="text-[#2563EB]" />
-          Conversa com o técnico
-          {comentarios.length > 0 && (
-            <span className="text-xs font-normal text-slate-400">
-              · {comentarios.length}{" "}
-              {comentarios.length === 1 ? "mensagem" : "mensagens"}
-            </span>
-          )}
-        </h2>
-      </div>
+    <div className="bg-white rounded-xl shadow-sm ring-1 ring-slate-200 p-6 sm:p-8">
+      <h2 className="text-base font-semibold text-slate-800 mb-6 flex items-center gap-2">
+        <MessageSquare size={18} className="text-[#2563EB]" />
+        Atendimento
+        {comentarios.length > 0 && (
+          <span className="text-xs font-normal text-slate-400">
+            · {comentarios.length}{" "}
+            {comentarios.length === 1 ? "mensagem" : "mensagens"}
+          </span>
+        )}
+        <span
+          title={conectado ? "Tempo real conectado" : "Reconectando..."}
+          className={`ml-auto flex items-center gap-1 text-[11px] font-normal ${
+            conectado ? "text-emerald-600" : "text-slate-400"
+          }`}
+        >
+          {conectado ? <Wifi size={13} /> : <WifiOff size={13} />}
+          {conectado ? "Ao vivo" : "Conectando..."}
+        </span>
+      </h2>
 
       {carregando ? (
-        <div className="flex items-center gap-2 text-sm text-slate-400 px-6 sm:px-8 py-8">
+        <div className="flex items-center gap-2 text-sm text-slate-400 mb-6">
           <Loader className="animate-spin" size={16} />
           Carregando conversa...
         </div>
       ) : comentarios.length === 0 ? (
-        <p className="text-slate-400 text-sm px-6 sm:px-8 py-8 text-center">
-          Nenhuma mensagem ainda. Escreva abaixo para começar a conversa.
+        <p className="text-slate-400 text-sm mb-6">
+          Nenhuma mensagem registrada neste atendimento ainda.
         </p>
       ) : (
-        <div className="flex-1 flex flex-col max-h-[32rem] min-h-[16rem] overflow-y-auto px-4 sm:px-6 py-5 bg-slate-50/50">
+        <div className="space-y-4 max-h-[28rem] overflow-y-auto mb-6 pr-1">
           {comentarios.map((comentario) => {
-            const souEu = user?.id != null && comentario.autorId === user.id;
             const ehEquipe =
               comentario.autorPerfil === "TECNICO" ||
               comentario.autorPerfil === "ADMIN";
 
-            const diaAtual = formatarDiaSeparador(comentario.createdAt);
-            const mostrarSeparador = diaAtual && diaAtual !== ultimoDia;
-            ultimoDia = diaAtual;
-
             return (
-              <div key={comentario.id}>
-                {mostrarSeparador && (
-                  <div className="flex justify-center my-4">
-                    <span className="text-[11px] font-medium text-slate-400 bg-slate-200/70 px-3 py-1 rounded-full">
-                      {diaAtual}
-                    </span>
-                  </div>
-                )}
-
-                <div
-                  className={`flex gap-2.5 mb-4 ${
-                    souEu ? "flex-row-reverse" : "flex-row"
-                  }`}
-                >
-                  <div className="shrink-0 mt-auto">
-                    <Avatar nome={comentario.autorNome} tamanho={28} />
-                  </div>
-
+              <div key={comentario.id} className="flex gap-3">
+                <Avatar nome={comentario.autorNome} tamanho={34} />
+                <div className="flex-1 min-w-0">
                   <div
-                    className={`max-w-[78%] sm:max-w-[65%] flex flex-col ${
-                      souEu ? "items-end" : "items-start"
+                    className={`rounded-xl rounded-tl-sm px-4 py-3 ${
+                      ehEquipe
+                        ? "bg-[#DBEAFE]/60 border border-[#BFDBFE]"
+                        : "bg-slate-50 border border-slate-200"
                     }`}
                   >
-                    {!souEu && (
-                      <span className="text-[11px] font-medium text-slate-500 mb-0.5 ml-1">
-                        {comentario.autorNome || (ehEquipe ? "Técnico" : "Solicitante")}
-                        {comentario.autorPerfil && (
-                          <span className="text-slate-400"> · {PERFIL_LABEL[comentario.autorPerfil] || comentario.autorPerfil}</span>
-                        )}
+                    <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
+                      <span className="font-semibold text-sm text-slate-800">
+                        {comentario.autorNome || "Usuário"}
                       </span>
-                    )}
-
-                    <div
-                      className={`px-4 py-2.5 text-sm leading-relaxed whitespace-pre-line break-words shadow-sm ${
-                        souEu
-                          ? "bg-[#2563EB] text-white rounded-2xl rounded-tr-sm"
-                          : "bg-white text-slate-700 ring-1 ring-slate-200 rounded-2xl rounded-tl-sm"
-                      }`}
-                    >
-                      {comentario.mensagem}
+                      {comentario.autorPerfil && (
+                        <span
+                          className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                            ehEquipe
+                              ? "bg-[#2563EB] text-white"
+                              : "bg-slate-200 text-slate-600"
+                          }`}
+                        >
+                          {PERFIL_LABEL[comentario.autorPerfil] ||
+                            comentario.autorPerfil}
+                        </span>
+                      )}
                     </div>
-
-                    <span className="text-[10px] text-slate-400 mt-1 mx-1">
-                      {formatarHora(comentario.createdAt)}
-                    </span>
+                    <p className="text-slate-700 text-sm whitespace-pre-line leading-relaxed">
+                      {comentario.mensagem}
+                    </p>
                   </div>
+                  <span className="text-[11px] text-slate-400 ml-1">
+                    {formatarHora(comentario.createdAt)}
+                  </span>
                 </div>
               </div>
             );
           })}
-          <div ref={fimDaConversaRef} />
+          <div ref={fimDaListaRef} />
         </div>
       )}
 
       {podeComentar && (
         <form
           onSubmit={enviarComentario}
-          className="flex gap-2 sm:gap-3 p-4 sm:px-6 sm:py-4 border-t border-slate-100 bg-white print:hidden"
+          className="flex gap-3 pt-4 border-t border-slate-100 print:hidden"
         >
           <input
             type="text"
-            placeholder="Digite sua mensagem..."
+            placeholder="Escreva uma mensagem..."
             value={mensagem}
             onChange={(e) => setMensagem(e.target.value)}
-            className="flex-1 min-w-0 border-2 border-slate-200 rounded-full px-4 py-2.5 text-sm outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-blue-100 transition"
+            className="flex-1 border-2 border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-blue-100 transition"
           />
 
           <button
             type="submit"
             disabled={enviando || !mensagem.trim()}
-            aria-label="Enviar mensagem"
-            className="shrink-0 inline-flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1d4fd1] disabled:opacity-50 text-white w-11 h-11 sm:w-auto sm:px-5 rounded-full text-sm font-medium shadow-sm transition"
+            className="inline-flex items-center gap-2 bg-[#2563EB] hover:bg-[#1d4fd1] disabled:opacity-50 text-white px-5 rounded-lg text-sm font-medium shadow-sm transition"
           >
             {enviando ? (
-              <Loader className="animate-spin" size={16} />
+              <Loader className="animate-spin" size={15} />
             ) : (
-              <Send size={16} />
+              <Send size={15} />
             )}
-            <span className="hidden sm:inline">Enviar</span>
+            Enviar
           </button>
         </form>
       )}
