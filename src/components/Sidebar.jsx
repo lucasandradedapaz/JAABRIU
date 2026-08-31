@@ -53,12 +53,14 @@ export default function Sidebar() {
       )}
 
       <nav className="flex flex-col gap-2 p-4 pt-0 flex-1">
-        <Link
-          to="/dashboard"
-          className={`px-4 py-3 rounded-xl transition ${active("/dashboard")}`}
-        >
-          Dashboard
-        </Link>
+        {user?.perfil !== "USUARIO" && (
+          <Link
+            to="/dashboard"
+            className={`px-4 py-3 rounded-xl transition ${active("/dashboard")}`}
+          >
+            Dashboard
+          </Link>
+        )}
 
         <Link
           to="/chamados"

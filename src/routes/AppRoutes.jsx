@@ -20,6 +20,7 @@ export default function AppRoutes() {
         <Route path="/" element={<Login />} />
 
         {/* privadas */}
+        {/* Dashboard: só técnico/admin — usuário comum não tem essa tela */}
         <Route
           path="/dashboard"
           element={
@@ -59,7 +60,7 @@ export default function AppRoutes() {
         <Route
           path="/historico"
           element={
-            <ProtectedRoute roles={["ADMIN", "TECNICO"]}>
+            <ProtectedRoute>
               <Historico />
             </ProtectedRoute>
           }

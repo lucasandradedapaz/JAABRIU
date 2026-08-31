@@ -27,15 +27,10 @@ export default function Login() {
       const response = await api.post("/auth/login", { email, senha });
 
       // backend retorna string JWT
-      const perfilLogado = await login(response.data);
+      const perfil = await login(response.data);
 
-      // Usuário comum não precisa de dashboard: vai direto para abrir um chamado.
-      // Técnico/Admin vão para o painel de gestão.
-      if (perfilLogado?.perfil === "USUARIO") {
-        navigate("/novo-chamado");
-      } else {
-        navigate("/dashboard");
-      }
+      // Usuário comum não tem Dashboard — vai direto abrir um chamado
+      navigate(perfil?.perfil === "USUARIO" ? "/novo-chamado" : "/dashboard");
     } catch (error) {
       console.log("ERRO LOGIN:", error);
 
