@@ -2,12 +2,6 @@ import { Navigate } from "react-router-dom";
 import { Loader } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-// Pra onde mandar cada perfil quando ele tenta acessar uma rota que não é
-// dele (também usado como destino padrão após o login).
-function paginaInicial(perfil) {
-  return perfil === "USUARIO" ? "/chamados" : "/dashboard";
-}
-
 export default function ProtectedRoute({ children, roles }) {
   const { authenticated, user, loading } = useAuth();
 
@@ -27,9 +21,11 @@ export default function ProtectedRoute({ children, roles }) {
     );
   }
 
-  // Rota restrita a determinados perfis
+  // Rota restrita a determinados perfis.
+  // Usuário comum não tem "home" no dashboard — a home dele é abrir chamado.
   if (roles && roles.length > 0 && user && !roles.includes(user.perfil)) {
-    return <Navigate to={paginaInicial(user.perfil)} replace />;
+    const home = user.perfil === "USUARIO" ? "/novo-chamado" : "/dashboard";
+    return <Navigate to={home} replace />;
   }
 
   return children;
