@@ -60,7 +60,7 @@ export default function AppRoutes() {
         <Route
           path="/historico"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={["ADMIN", "TECNICO"]}>
               <Historico />
             </ProtectedRoute>
           }

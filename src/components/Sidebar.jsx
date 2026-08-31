@@ -78,12 +78,14 @@ export default function Sidebar() {
           Novo Chamado
         </Link>
 
-        <Link
-          to="/historico"
-          className={`px-4 py-3 rounded-xl transition ${active("/historico")}`}
-        >
-          Histórico
-        </Link>
+        {user?.perfil !== "USUARIO" && (
+          <Link
+            to="/historico"
+            className={`px-4 py-3 rounded-xl transition ${active("/historico")}`}
+          >
+            Histórico
+          </Link>
+        )}
 
         {user?.perfil === "ADMIN" && (
           <>
