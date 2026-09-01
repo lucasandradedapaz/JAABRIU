@@ -31,7 +31,9 @@ export function AuthProvider({ children }) {
     localStorage.setItem("token", newToken);
     setToken(newToken);
     setLoading(true);
-    return carregarPerfil();
+    // retorna o perfil recém-carregado para quem chamou (ex: tela de login)
+    // decidir para onde navegar de acordo com o tipo de usuário.
+    return await carregarPerfil();
   }
 
   function logout() {
@@ -47,6 +49,10 @@ export function AuthProvider({ children }) {
 
   function isTecnico() {
     return user?.perfil === "TECNICO";
+  }
+
+  function isUsuario() {
+    return user?.perfil === "USUARIO";
   }
 
   function podeGerenciarChamados() {
@@ -73,6 +79,7 @@ export function AuthProvider({ children }) {
         logout,
         isAdmin,
         isTecnico,
+        isUsuario,
         podeGerenciarChamados,
         recarregarPerfil: carregarPerfil,
       }}
