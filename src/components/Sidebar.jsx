@@ -15,6 +15,7 @@ import {
 import logo from "../assets/jaabriu-branco.png";
 import { useAuth } from "../context/AuthContext";
 import Avatar from "./Avatar";
+import NotificacaoSino from "./NotificacaoSino";
 
 const PERFIL_LABEL = {
   ADMIN: "Administrador",
@@ -102,18 +103,19 @@ export default function Sidebar() {
         </div>
 
         {user && (
-          <div className="mx-4 mb-4 flex items-center gap-3 bg-slate-800/60 rounded-xl p-3">
-            <Avatar nome={user.nome} tamanho={36} />
-            <div className="min-w-0">
-              <p className="text-white text-sm font-medium truncate">
-                {user.nome}
-              </p>
-              <p className="text-slate-400 text-xs">
-                {PERFIL_LABEL[user.perfil] || user.perfil}
-              </p>
-            </div>
-          </div>
-        )}
+                <div className="mx-4 mb-4 flex items-center gap-3 bg-slate-800/60 rounded-xl p-3">
+                  <Avatar nome={user.nome} tamanho={36} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white text-sm font-medium truncate">
+                      {user.nome}
+                    </p>
+                    <p className="text-slate-400 text-xs">
+                      {PERFIL_LABEL[user.perfil] || user.perfil}
+                    </p>
+                  </div>
+                  <NotificacaoSino />
+                </div>
+              )}
 
         <nav className="flex flex-col gap-2 p-4 pt-0 flex-1 overflow-y-auto">
           {itens.map((item) => (
