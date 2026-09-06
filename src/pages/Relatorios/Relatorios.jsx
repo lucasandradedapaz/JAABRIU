@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Lock,
   AlertTriangle,
+  CalendarClock,
 } from "lucide-react";
 import {
   BarChart,
@@ -68,6 +69,45 @@ const SETOR_LABEL = Object.fromEntries(SETOR_OPCOES.map((s) => [s.value, s.label
 
 const CORES_GRAFICO = ["#2563EB", "#4675AF", "#0F766E", "#64748B", "#0EA5E9", "#1E293B"];
 
+// Períodos rápidos: um clique já calcula o intervalo e gera o relatório.
+const PERIODOS_RAPIDOS = [
+  { value: "DIARIO", label: "Diário" },
+  { value: "SEMANAL", label: "Semanal" },
+  { value: "MENSAL", label: "Mensal" },
+  { value: "ANUAL", label: "Anual" },
+  { value: "ULTIMOS_12_MESES", label: "Últimos 12 meses" },
+];
+
+function paraISO(data) {
+  return data.toISOString().slice(0, 10);
+}
+
+function calcularIntervaloPeriodo(periodo) {
+  const hoje = new Date();
+  let inicio = new Date(hoje);
+
+  switch (periodo) {
+    case "DIARIO":
+      break;
+    case "SEMANAL":
+      inicio.setDate(hoje.getDate() - 6);
+      break;
+    case "MENSAL":
+      inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      break;
+    case "ANUAL":
+      inicio = new Date(hoje.getFullYear(), 0, 1);
+      break;
+    case "ULTIMOS_12_MESES":
+      inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 11, 1);
+      break;
+    default:
+      return { dataInicio: "", dataFim: "" };
+  }
+
+  return { dataInicio: paraISO(inicio), dataFim: paraISO(hoje) };
+}
+
 const FILTROS_VAZIOS = {
   dataInicio: "",
   dataFim: "",
@@ -95,6 +135,7 @@ export default function Relatorios() {
   const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
   const [filtrosAplicados, setFiltrosAplicados] = useState(null);
   const [geradoEm, setGeradoEm] = useState(null);
+  const [periodoAtivo, setPeriodoAtivo] = useState("");
 
   const [tecnicos, setTecnicos] = useState([]);
   const [solicitantes, setSolicitantes] = useState([]);
@@ -123,22 +164,22 @@ export default function Relatorios() {
     }
   }
 
-  async function gerarRelatorio() {
+  async function gerarRelatorio(filtrosParaUsar = filtros) {
     setCarregando(true);
     try {
       const payload = {};
-      if (filtros.status) payload.status = filtros.status;
-      if (filtros.prioridade) payload.prioridade = filtros.prioridade;
-      if (filtros.categoria) payload.categoria = filtros.categoria;
-      if (filtros.setor) payload.setor = filtros.setor;
-      if (filtros.tecnicoId) payload.tecnicoId = Number(filtros.tecnicoId);
-      if (filtros.usuarioId) payload.usuarioId = Number(filtros.usuarioId);
-      if (filtros.dataInicio) payload.dataInicio = filtros.dataInicio;
-      if (filtros.dataFim) payload.dataFim = filtros.dataFim;
+      if (filtrosParaUsar.status) payload.status = filtrosParaUsar.status;
+      if (filtrosParaUsar.prioridade) payload.prioridade = filtrosParaUsar.prioridade;
+      if (filtrosParaUsar.categoria) payload.categoria = filtrosParaUsar.categoria;
+      if (filtrosParaUsar.setor) payload.setor = filtrosParaUsar.setor;
+      if (filtrosParaUsar.tecnicoId) payload.tecnicoId = Number(filtrosParaUsar.tecnicoId);
+      if (filtrosParaUsar.usuarioId) payload.usuarioId = Number(filtrosParaUsar.usuarioId);
+      if (filtrosParaUsar.dataInicio) payload.dataInicio = filtrosParaUsar.dataInicio;
+      if (filtrosParaUsar.dataFim) payload.dataFim = filtrosParaUsar.dataFim;
 
       const response = await api.post("/chamados/filtros", payload);
       setChamados(response.data || []);
-      setFiltrosAplicados({ ...filtros });
+      setFiltrosAplicados({ ...filtrosParaUsar });
       setGeradoEm(new Date().toISOString());
       setPagina(1);
       setCarregouUmaVez(true);
@@ -158,6 +199,21 @@ export default function Relatorios() {
 
   function limparFiltros() {
     setFiltros(FILTROS_VAZIOS);
+    setPeriodoAtivo("");
+  }
+
+  // Um clique já calcula o período e gera o relatório na hora.
+  function selecionarPeriodoRapido(periodo) {
+    const novoPeriodo = periodoAtivo === periodo ? "" : periodo;
+    setPeriodoAtivo(novoPeriodo);
+
+    const intervalo = novoPeriodo
+      ? calcularIntervaloPeriodo(novoPeriodo)
+      : { dataInicio: "", dataFim: "" };
+
+    const novosFiltros = { ...filtros, ...intervalo };
+    setFiltros(novosFiltros);
+    gerarRelatorio(novosFiltros);
   }
 
   function handleImprimir() {
@@ -333,13 +389,44 @@ export default function Relatorios() {
               Filtros
             </h2>
 
+            {/* PERÍODO RÁPIDO — um clique já gera o relatório */}
+            <div className="mb-5 pb-5 border-b border-slate-100">
+              <label className="text-xs font-medium text-slate-500 mb-2 flex items-center gap-1.5">
+                <CalendarClock size={14} />
+                Período rápido
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {PERIODOS_RAPIDOS.map((p) => (
+                  <button
+                    key={p.value}
+                    onClick={() => selecionarPeriodoRapido(p.value)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
+                      periodoAtivo === p.value
+                        ? "text-white shadow-sm"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                    style={
+                      periodoAtivo === p.value
+                        ? { backgroundColor: AZUL_PRINCIPAL }
+                        : undefined
+                    }
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className="text-xs font-medium text-slate-500 mb-1 block">Período inicial</label>
                 <input
                   type="date"
                   value={filtros.dataInicio}
-                  onChange={(e) => setFiltros({ ...filtros, dataInicio: e.target.value })}
+                  onChange={(e) => {
+                    setPeriodoAtivo("");
+                    setFiltros({ ...filtros, dataInicio: e.target.value });
+                  }}
                   className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-blue-100 transition"
                 />
               </div>
@@ -349,7 +436,10 @@ export default function Relatorios() {
                 <input
                   type="date"
                   value={filtros.dataFim}
-                  onChange={(e) => setFiltros({ ...filtros, dataFim: e.target.value })}
+                  onChange={(e) => {
+                    setPeriodoAtivo("");
+                    setFiltros({ ...filtros, dataFim: e.target.value });
+                  }}
                   className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-blue-100 transition"
                 />
               </div>
@@ -441,7 +531,7 @@ export default function Relatorios() {
 
             <div className="flex flex-wrap gap-3 mt-5">
               <button
-                onClick={gerarRelatorio}
+                onClick={() => gerarRelatorio()}
                 disabled={carregando}
                 className="inline-flex items-center gap-2 text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm disabled:opacity-60 transition"
                 style={{ backgroundColor: AZUL_PRINCIPAL }}

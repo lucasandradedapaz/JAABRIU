@@ -4,13 +4,13 @@ import {
   Search,
   Plus,
   Eye,
-  Ticket,
   Filter,
   X,
   Loader,
   UserRound,
   Wrench,
   Building2,
+  CalendarClock,
 } from "lucide-react";
 import api from "../../services/api";
 import Sidebar from "../../components/Sidebar";
@@ -45,6 +45,46 @@ const SETOR_OPCOES = [
 
 const STATUS_LABEL = Object.fromEntries(STATUS_OPCOES.map((s) => [s.value, s.label]));
 const SETOR_LABEL = Object.fromEntries(SETOR_OPCOES.map((s) => [s.value, s.label]));
+
+// Períodos rápidos: um clique já calcula o intervalo de datas e filtra.
+const PERIODOS_RAPIDOS = [
+  { value: "DIARIO", label: "Diário" },
+  { value: "SEMANAL", label: "Semanal" },
+  { value: "MENSAL", label: "Mensal" },
+  { value: "ANUAL", label: "Anual" },
+  { value: "ULTIMOS_12_MESES", label: "Últimos 12 meses" },
+];
+
+function paraISO(data) {
+  return data.toISOString().slice(0, 10);
+}
+
+function calcularIntervaloPeriodo(periodo) {
+  const hoje = new Date();
+  let inicio = new Date(hoje);
+
+  switch (periodo) {
+    case "DIARIO":
+      // só hoje
+      break;
+    case "SEMANAL":
+      inicio.setDate(hoje.getDate() - 6);
+      break;
+    case "MENSAL":
+      inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      break;
+    case "ANUAL":
+      inicio = new Date(hoje.getFullYear(), 0, 1);
+      break;
+    case "ULTIMOS_12_MESES":
+      inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 11, 1);
+      break;
+    default:
+      return { dataInicio: "", dataFim: "" };
+  }
+
+  return { dataInicio: paraISO(inicio), dataFim: paraISO(hoje) };
+}
 
 function corStatus(status) {
   switch (status) {
@@ -102,6 +142,7 @@ export default function Chamados() {
 
   const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [periodoAtivo, setPeriodoAtivo] = useState("");
 
   const [tecnicos, setTecnicos] = useState([]);
   const [solicitantes, setSolicitantes] = useState([]);
@@ -139,17 +180,17 @@ export default function Chamados() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function aplicarFiltros() {
+  async function aplicarFiltros(filtrosParaUsar = filtros) {
     setLoading(true);
     try {
       const payload = {};
-      if (filtros.status) payload.status = filtros.status;
-      if (filtros.prioridade) payload.prioridade = filtros.prioridade;
-      if (filtros.setor) payload.setor = filtros.setor;
-      if (filtros.tecnicoId) payload.tecnicoId = Number(filtros.tecnicoId);
-      if (filtros.usuarioId) payload.usuarioId = Number(filtros.usuarioId);
-      if (filtros.dataInicio) payload.dataInicio = filtros.dataInicio;
-      if (filtros.dataFim) payload.dataFim = filtros.dataFim;
+      if (filtrosParaUsar.status) payload.status = filtrosParaUsar.status;
+      if (filtrosParaUsar.prioridade) payload.prioridade = filtrosParaUsar.prioridade;
+      if (filtrosParaUsar.setor) payload.setor = filtrosParaUsar.setor;
+      if (filtrosParaUsar.tecnicoId) payload.tecnicoId = Number(filtrosParaUsar.tecnicoId);
+      if (filtrosParaUsar.usuarioId) payload.usuarioId = Number(filtrosParaUsar.usuarioId);
+      if (filtrosParaUsar.dataInicio) payload.dataInicio = filtrosParaUsar.dataInicio;
+      if (filtrosParaUsar.dataFim) payload.dataFim = filtrosParaUsar.dataFim;
 
       const response = await api.post("/chamados/filtros", payload);
       setChamados(response.data || []);
@@ -160,8 +201,24 @@ export default function Chamados() {
     }
   }
 
+  // Um clique já calcula o período e filtra na hora — sem precisar
+  // clicar em "Filtrar" depois. Clicar de novo no mesmo período desliga.
+  function selecionarPeriodoRapido(periodo) {
+    const novoPeriodo = periodoAtivo === periodo ? "" : periodo;
+    setPeriodoAtivo(novoPeriodo);
+
+    const intervalo = novoPeriodo
+      ? calcularIntervaloPeriodo(novoPeriodo)
+      : { dataInicio: "", dataFim: "" };
+
+    const novosFiltros = { ...filtros, ...intervalo };
+    setFiltros(novosFiltros);
+    aplicarFiltros(novosFiltros);
+  }
+
   function limparFiltros() {
     setFiltros(FILTROS_VAZIOS);
+    setPeriodoAtivo("");
     carregarChamados();
   }
 
@@ -247,6 +304,34 @@ export default function Chamados() {
           {/* PAINEL DE FILTROS — só técnico/admin */}
           {podeGerenciar && filtrosAbertos && (
             <div className="bg-white rounded-xl shadow-sm ring-1 ring-slate-200 p-6 mb-6">
+              {/* PERÍODO RÁPIDO — um clique já filtra */}
+              <div className="mb-5 pb-5 border-b border-slate-100">
+                <label className="text-xs font-medium text-slate-500 mb-2 flex items-center gap-1.5">
+                  <CalendarClock size={14} />
+                  Período rápido
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {PERIODOS_RAPIDOS.map((p) => (
+                    <button
+                      key={p.value}
+                      onClick={() => selecionarPeriodoRapido(p.value)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
+                        periodoAtivo === p.value
+                          ? "text-white shadow-sm"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                      style={
+                        periodoAtivo === p.value
+                          ? { backgroundColor: AZUL_PRINCIPAL }
+                          : undefined
+                      }
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="text-xs font-medium text-slate-500 mb-1 block">Status</label>
@@ -325,7 +410,10 @@ export default function Chamados() {
                   <input
                     type="date"
                     value={filtros.dataInicio}
-                    onChange={(e) => setFiltros({ ...filtros, dataInicio: e.target.value })}
+                    onChange={(e) => {
+                      setPeriodoAtivo("");
+                      setFiltros({ ...filtros, dataInicio: e.target.value });
+                    }}
                     className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-blue-100 transition"
                   />
                 </div>
@@ -335,7 +423,10 @@ export default function Chamados() {
                   <input
                     type="date"
                     value={filtros.dataFim}
-                    onChange={(e) => setFiltros({ ...filtros, dataFim: e.target.value })}
+                    onChange={(e) => {
+                      setPeriodoAtivo("");
+                      setFiltros({ ...filtros, dataFim: e.target.value });
+                    }}
                     className="w-full border-2 border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-blue-100 transition"
                   />
                 </div>
@@ -343,7 +434,7 @@ export default function Chamados() {
 
               <div className="flex gap-3 mt-5">
                 <button
-                  onClick={aplicarFiltros}
+                  onClick={() => aplicarFiltros()}
                   className="inline-flex items-center gap-2 text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition"
                   style={{ backgroundColor: AZUL_PRINCIPAL }}
                 >
