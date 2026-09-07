@@ -9,6 +9,7 @@ import Historico from "../pages/Historico/Historico";
 import Profile from "../pages/Profile/Profile";
 import Usuarios from "../pages/Usuarios/Usuarios";
 import Relatorios from "../pages/Relatorios/Relatorios";
+import SlaConfiguracao from "../pages/Sla/SlaConfiguracao";
 import NotFound from "../pages/NotFound/NotFound";
 import ProtectedRoute from "../components/ProtectedRoute";
 
@@ -89,6 +90,15 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute roles={["ADMIN"]}>
               <Relatorios />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/sla"
+          element={
+            <ProtectedRoute roles={["ADMIN"]}>
+              <SlaConfiguracao />
             </ProtectedRoute>
           }
         />

@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   X,
+  Clock,
 } from "lucide-react";
 import logo from "../assets/jaabriu-branco.png";
 import { useAuth } from "../context/AuthContext";
@@ -154,6 +155,17 @@ export default function Sidebar() {
               >
                 <Users size={18} />
                 Usuários
+              </Link>
+
+              <Link
+                to="/sla"
+                onClick={fechar}
+                className={`px-4 py-3 rounded-xl transition flex items-center gap-2.5 ${active(
+                  "/sla"
+                )}`}
+              >
+                <Clock size={18} />
+                Configurar SLA
               </Link>
             </>
           )}

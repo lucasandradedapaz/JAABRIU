@@ -11,17 +11,19 @@ import {
   Wrench,
   Building2,
   CalendarClock,
+  AlertTriangle,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import api from "../../services/api";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
+import SlaBadge from "../../components/SlaBadge";
 import { useAuth } from "../../context/AuthContext";
+import { useRelogioTick } from "../../hooks/useRelogioTick";
+import { calcularSla, chaveUrgenciaSla } from "../../utils/sla";
 
 const AZUL_PRINCIPAL = "#2563EB";
-
-// Ordem de urgência: chamados que ainda precisam de atenção aparecem
-// primeiro. Dentro de cada grupo, os mais recentes vêm primeiro.
-const ORDEM_STATUS = { ABERTO: 0, EM_ANDAMENTO: 1, RESOLVIDO: 2, FECHADO: 3 };
 
 const STATUS_OPCOES = [
   { value: "ABERTO", label: "Aberto" },
@@ -223,8 +225,25 @@ export default function Chamados() {
   }
 
   const filtrosAtivos = Object.values(filtros).some((v) => v !== "");
+  const agora = useRelogioTick();
 
-  // Busca por texto (client-side) + ordenação por urgência
+  // Resumo estilo "monitor de SLA": quantos estão vencidos, críticos,
+  // em atenção e dentro do prazo — só pra quem gerencia os chamados.
+  const resumoSla = useMemo(() => {
+    const resumo = { vencidos: 0, criticos: 0, atencao: 0, noPrazo: 0 };
+    chamados.forEach((c) => {
+      const sla = calcularSla(c, agora);
+      if (sla.estado === "vencido") resumo.vencidos++;
+      else if (sla.estado === "ativo" && sla.nivel === "critico") resumo.criticos++;
+      else if (sla.estado === "ativo" && sla.nivel === "atencao") resumo.atencao++;
+      else if (sla.estado === "ativo" && sla.nivel === "no_prazo") resumo.noPrazo++;
+    });
+    return resumo;
+  }, [chamados, agora]);
+
+  // Busca por texto (client-side) + ordenação por urgência do SLA
+  // (vencidos primeiro, depois quem tem menos tempo restante — os
+  // críticos naturalmente sobem por terem prazos mais curtos).
   const chamadosExibidos = useMemo(() => {
     let lista = chamados;
 
@@ -237,13 +256,10 @@ export default function Chamados() {
       );
     }
 
-    return [...lista].sort((a, b) => {
-      const ordemA = ORDEM_STATUS[a.status] ?? 99;
-      const ordemB = ORDEM_STATUS[b.status] ?? 99;
-      if (ordemA !== ordemB) return ordemA - ordemB;
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
-  }, [chamados, busca]);
+    return [...lista].sort(
+      (a, b) => chaveUrgenciaSla(a, agora) - chaveUrgenciaSla(b, agora)
+    );
+  }, [chamados, busca, agora]);
 
   return (
     <div className="flex bg-slate-50 min-h-screen">
@@ -260,6 +276,51 @@ export default function Chamados() {
         />
 
         <div className="p-6 sm:p-8">
+          {/* RESUMO DE SLA — estilo "monitor", só pra quem gerencia */}
+          {podeGerenciar && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-red-200 p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                  <AlertTriangle size={18} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-slate-800">{resumoSla.vencidos}</p>
+                  <p className="text-xs text-slate-400 font-medium">Vencidos</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-orange-200 p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                  <AlertTriangle size={18} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-slate-800">{resumoSla.criticos}</p>
+                  <p className="text-xs text-slate-400 font-medium">Críticos</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-amber-200 p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                  <Clock size={18} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-slate-800">{resumoSla.atencao}</p>
+                  <p className="text-xs text-slate-400 font-medium">Atenção</p>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-emerald-200 p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                  <CheckCircle2 size={18} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-slate-800">{resumoSla.noPrazo}</p>
+                  <p className="text-xs text-slate-400 font-medium">No prazo</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div className="relative flex-1 max-w-md">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -472,14 +533,15 @@ export default function Chamados() {
                 >
                   <div className="flex flex-col md:flex-row md:justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
                         <span className="text-xs text-slate-400 font-medium">#{chamado.id}</span>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${corStatus(chamado.status)}`}>
-                          {STATUS_LABEL[chamado.status] || chamado.status}
-                        </span>
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${corPrioridade(chamado.prioridade)}`}>
                           {chamado.prioridade}
                         </span>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${corStatus(chamado.status)}`}>
+                          {STATUS_LABEL[chamado.status] || chamado.status}
+                        </span>
+                        <SlaBadge chamado={chamado} tamanho="compacto" />
                       </div>
 
                       <h2 className="text-lg font-bold text-slate-800 truncate">
@@ -492,6 +554,9 @@ export default function Chamados() {
 
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-slate-400">
                         <span className="flex items-center gap-1">
+                          <Wrench size={13} /> {chamado.tecnicoNome || "Não atribuído"}
+                        </span>
+                        <span className="flex items-center gap-1">
                           <UserRound size={13} /> {chamado.usuarioNome || "—"}
                         </span>
                         {chamado.setor && (
@@ -499,10 +564,7 @@ export default function Chamados() {
                             <Building2 size={13} /> {SETOR_LABEL[chamado.setor] || chamado.setor}
                           </span>
                         )}
-                        <span className="flex items-center gap-1">
-                          <Wrench size={13} /> {chamado.tecnicoNome || "Não atribuído"}
-                        </span>
-                        <span>{formatarData(chamado.createdAt)}</span>
+                        <span>Aberto em {formatarData(chamado.createdAt)}</span>
                       </div>
                     </div>
 

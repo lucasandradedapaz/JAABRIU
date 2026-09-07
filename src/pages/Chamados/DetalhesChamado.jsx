@@ -28,6 +28,7 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import Comentarios from "../../components/Comentarios";
 import Avatar from "../../components/Avatar";
+import SlaBadge from "../../components/SlaBadge";
 import { useAuth } from "../../context/AuthContext";
 
 /* ---------------------------------------------------------
@@ -507,34 +508,38 @@ export default function DetalhesChamado() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 print:hidden shrink-0">
-              <button
-                onClick={handleImprimir}
-                title="Imprimir chamado"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 ring-1 ring-slate-200 bg-white hover:bg-slate-50 transition"
-              >
-                <Printer size={16} />
-                Imprimir
-              </button>
+            <div className="w-full sm:w-auto flex flex-col items-stretch sm:items-end gap-3">
+              <SlaBadge chamado={chamado} tamanho="grande" />
 
-              {podeGerenciar && (
-                <>
-                  <button
-                    onClick={() => setEditando(true)}
-                    title="Editar chamado"
-                    className="p-2.5 rounded-lg text-slate-400 hover:text-[#2563EB] hover:bg-blue-50 ring-1 ring-slate-200 bg-white transition"
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    onClick={() => setConfirmandoExclusao(true)}
-                    title="Excluir chamado"
-                    className="p-2.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 ring-1 ring-slate-200 bg-white transition"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </>
-              )}
+              <div className="flex items-center gap-2 print:hidden shrink-0 self-end">
+                <button
+                  onClick={handleImprimir}
+                  title="Imprimir chamado"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 ring-1 ring-slate-200 bg-white hover:bg-slate-50 transition"
+                >
+                  <Printer size={16} />
+                  Imprimir
+                </button>
+
+                {podeGerenciar && (
+                  <>
+                    <button
+                      onClick={() => setEditando(true)}
+                      title="Editar chamado"
+                      className="p-2.5 rounded-lg text-slate-400 hover:text-[#2563EB] hover:bg-blue-50 ring-1 ring-slate-200 bg-white transition"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => setConfirmandoExclusao(true)}
+                      title="Excluir chamado"
+                      className="p-2.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 ring-1 ring-slate-200 bg-white transition"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
