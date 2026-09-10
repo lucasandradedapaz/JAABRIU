@@ -174,8 +174,9 @@ function encontrarEvento(historico, palavrasChave) {
 export default function DetalhesChamado() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { podeGerenciarChamados, user } = useAuth();
+  const { podeGerenciarChamados, isAdmin, user } = useAuth();
   const podeGerenciar = podeGerenciarChamados();
+  const admin = isAdmin();
   // Todo mundo que participa do atendimento pode conversar:
   // solicitante, técnico e admin. Antes o técnico ficava de fora por engano.
   const podeInteragir = !!user;
@@ -571,7 +572,7 @@ export default function DetalhesChamado() {
                   Imprimir
                 </button>
 
-                {podeGerenciar && (
+                {admin && (
                   <>
                     <button
                       onClick={() => setEditando(true)}
