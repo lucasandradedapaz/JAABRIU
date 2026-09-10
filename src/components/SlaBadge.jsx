@@ -1,4 +1,4 @@
-import { Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle2, HelpCircle } from "lucide-react";
 import { useRelogioTick } from "../hooks/useRelogioTick";
 import { calcularSla, formatarDuracao } from "../utils/sla";
 
@@ -26,6 +26,33 @@ const ESTILO_NIVEL = {
  */
 export default function SlaBadge({ chamado, tamanho = "compacto" }) {
   const agora = useRelogioTick();
+
+  // Ainda não tem prioridade definida -> ainda não existe prazo de SLA
+  if (!chamado.prioridade) {
+    const finalizado = chamado.status === "RESOLVIDO" || chamado.status === "FECHADO";
+    if (finalizado) return null;
+
+    if (tamanho === "grande") {
+      return (
+        <div className="rounded-xl border-2 border-slate-300 bg-slate-50 px-5 py-4">
+          <p className="flex items-center gap-2 text-slate-600 font-semibold text-xs uppercase tracking-wide">
+            <HelpCircle size={15} />
+            Aguardando triagem
+          </p>
+          <p className="text-slate-500 text-xs mt-1">
+            O prazo começa a contar assim que um técnico definir a prioridade.
+          </p>
+        </div>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
+        <HelpCircle size={13} />
+        Aguardando triagem
+      </span>
+    );
+  }
+
   const sla = calcularSla(chamado, agora);
 
   if (sla.estado === "sem_sla") return null;

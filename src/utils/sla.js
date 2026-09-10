@@ -43,6 +43,10 @@ export function chaveUrgenciaSla(chamado, agoraMs) {
   const finalizado = chamado.status === "RESOLVIDO" || chamado.status === "FECHADO";
   if (finalizado) return Number.MAX_SAFE_INTEGER;
 
+  // Chamado sem prioridade ainda (aguardando triagem) é o mais urgente de
+  // todos — ninguém nem olhou pra ele ainda.
+  if (!chamado.prioridade) return -Number.MAX_SAFE_INTEGER;
+
   const sla = calcularSla(chamado, agoraMs);
   if (sla.estado === "sem_sla") return Number.MAX_SAFE_INTEGER - 1;
   if (sla.estado === "vencido") return -sla.excedidoMs; // mais atrasado = mais negativo = primeiro

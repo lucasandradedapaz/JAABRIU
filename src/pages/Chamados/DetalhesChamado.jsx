@@ -133,9 +133,15 @@ function BarraDeProgresso({ status }) {
 }
 
 function prioridadeConfig(prioridade) {
+  if (!prioridade) {
+    return {
+      label: "Aguardando triagem",
+      badge: "bg-slate-100 text-slate-500 ring-1 ring-slate-200",
+    };
+  }
   return (
     PRIORIDADE_CONFIG[prioridade] || {
-      label: prioridade || "—",
+      label: prioridade,
       badge: "bg-gray-100 text-gray-700 ring-1 ring-gray-200",
     }
   );
@@ -194,6 +200,10 @@ export default function DetalhesChamado() {
   // controla se a caixa de "colocar solução" está aberta — o técnico pode
   // fechar ela sem salvar caso tenha clicado sem querer.
   const [mostrarCaixaSolucao, setMostrarCaixaSolucao] = useState(false);
+
+  // definição de prioridade (chamado aberto por usuário comum sem prioridade)
+  const [prioridadeEscolhida, setPrioridadeEscolhida] = useState("MEDIA");
+  const [salvandoPrioridade, setSalvandoPrioridade] = useState(false);
 
   // edição do chamado
   const [editando, setEditando] = useState(false);
@@ -284,6 +294,22 @@ export default function DetalhesChamado() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chamado?.status, podeGerenciar]);
+
+  async function definirPrioridade() {
+    setSalvandoPrioridade(true);
+    try {
+      await api.put(`/chamados/${id}/prioridade`, {
+        prioridade: prioridadeEscolhida,
+      });
+      toast.success("Prioridade definida! O prazo de SLA começou a contar.");
+      await carregarDados();
+    } catch (error) {
+      console.log(error);
+      toast.error(error?.response?.data?.mensagem || "Erro ao definir prioridade");
+    } finally {
+      setSalvandoPrioridade(false);
+    }
+  }
 
   async function fecharChamado() {
     if (!descricaoSolucao.trim()) {
@@ -510,6 +536,30 @@ export default function DetalhesChamado() {
 
             <div className="w-full sm:w-auto flex flex-col items-stretch sm:items-end gap-3">
               <SlaBadge chamado={chamado} tamanho="grande" />
+
+              {podeGerenciar && !chamado.prioridade && (
+                <div className="w-full rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2.5">
+                  <select
+                    value={prioridadeEscolhida}
+                    onChange={(e) => setPrioridadeEscolhida(e.target.value)}
+                    className="border-2 border-blue-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#2563EB] focus:ring-4 focus:ring-blue-100 transition bg-white"
+                  >
+                    <option value="BAIXA">Baixa</option>
+                    <option value="MEDIA">Média</option>
+                    <option value="ALTA">Alta</option>
+                    <option value="URGENTE">Urgente</option>
+                  </select>
+                  <button
+                    onClick={definirPrioridade}
+                    disabled={salvandoPrioridade}
+                    className="inline-flex items-center justify-center gap-2 text-white px-4 py-1.5 rounded-lg text-sm font-medium shadow-sm disabled:opacity-60 transition"
+                    style={{ backgroundColor: "#2563EB" }}
+                  >
+                    {salvandoPrioridade ? <Loader className="animate-spin" size={15} /> : null}
+                    Definir prioridade
+                  </button>
+                </div>
+              )}
 
               <div className="flex items-center gap-2 print:hidden shrink-0 self-end">
                 <button

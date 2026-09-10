@@ -535,9 +535,11 @@ export default function Chamados() {
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-1">
                         <span className="text-xs text-slate-400 font-medium">#{chamado.id}</span>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${corPrioridade(chamado.prioridade)}`}>
-                          {chamado.prioridade}
-                        </span>
+                        {chamado.prioridade && (
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${corPrioridade(chamado.prioridade)}`}>
+                            {chamado.prioridade}
+                          </span>
+                        )}
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${corStatus(chamado.status)}`}>
                           {STATUS_LABEL[chamado.status] || chamado.status}
                         </span>
