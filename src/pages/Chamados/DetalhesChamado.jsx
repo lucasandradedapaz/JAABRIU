@@ -22,6 +22,7 @@ import {
   Tag,
   FileText,
   Building2,
+  ChevronDown,
 } from "lucide-react";
 import api from "../../services/api";
 import Sidebar from "../../components/Sidebar";
@@ -74,61 +75,6 @@ function statusConfig(status) {
       badge: "bg-gray-100 text-gray-700 ring-1 ring-gray-200",
       icon: Circle,
     }
-  );
-}
-
-const ETAPAS = ["ABERTO", "EM_ANDAMENTO", "RESOLVIDO", "FECHADO"];
-const ETAPA_LABEL = {
-  ABERTO: "Aberto",
-  EM_ANDAMENTO: "Em atendimento",
-  RESOLVIDO: "Resolvido",
-  FECHADO: "Fechado",
-};
-
-/* Barra de progresso horizontal simples: mostra em qual etapa o
-   chamado está agora, sem exigir conhecimento técnico do usuário. */
-function BarraDeProgresso({ status }) {
-  const indiceAtual = ETAPAS.indexOf(status);
-
-  return (
-    <div className="flex items-center w-full">
-      {ETAPAS.map((etapa, index) => {
-        const concluida = indiceAtual >= 0 && index < indiceAtual;
-        const atual = index === indiceAtual;
-        const pendente = !concluida && !atual;
-
-        return (
-          <div key={etapa} className="flex items-center flex-1 last:flex-none">
-            <div className="flex flex-col items-center gap-1.5 shrink-0">
-              <div
-                className={`w-3.5 h-3.5 rounded-full ring-4 transition ${
-                  concluida
-                    ? "bg-[#2563EB] ring-blue-100"
-                    : atual
-                    ? "bg-[#2563EB] ring-blue-100 animate-pulse"
-                    : "bg-slate-200 ring-slate-50"
-                }`}
-              />
-              <span
-                className={`text-[11px] font-medium text-center whitespace-nowrap ${
-                  pendente ? "text-slate-400" : "text-slate-700"
-                }`}
-              >
-                {ETAPA_LABEL[etapa]}
-              </span>
-            </div>
-
-            {index < ETAPAS.length - 1 && (
-              <div
-                className={`h-0.5 flex-1 mx-1 -mt-5 ${
-                  concluida ? "bg-[#2563EB]" : "bg-slate-200"
-                }`}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
   );
 }
 
@@ -352,6 +298,29 @@ export default function DetalhesChamado() {
     }
   }
 
+  // Seletor de status pra técnico/admin. "Fechado" precisa de solução +
+  // técnico atribuído, então abre a caixa de solução em vez de salvar direto.
+  async function alterarStatus(novoStatus) {
+    if (novoStatus === chamado.status) return;
+
+    if (novoStatus === "FECHADO") {
+      setMostrarCaixaSolucao(true);
+      return;
+    }
+
+    setSalvandoAcao(true);
+    try {
+      await api.put(`/chamados/${id}/status?status=${novoStatus}`);
+      toast.success("Status atualizado!");
+      await carregarDados();
+    } catch (error) {
+      console.log(error);
+      toast.error(error?.response?.data?.mensagem || "Erro ao atualizar status");
+    } finally {
+      setSalvandoAcao(false);
+    }
+  }
+
   async function salvarEdicao() {
     if (!editTitulo.trim() || !editDescricao.trim()) {
       toast.warn("Preencha título e descrição.");
@@ -525,10 +494,27 @@ export default function DetalhesChamado() {
                 {chamado.titulo}
               </h1>
               <div className="flex flex-wrap items-center gap-2 mt-3">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${status.badge}`}>
-                  <StatusIcon size={13} className={chamado.status === "EM_ANDAMENTO" ? "animate-spin" : ""} />
-                  {status.label}
-                </span>
+                {podeGerenciar ? (
+                  <div className="relative inline-flex items-center">
+                    <select
+                      value={chamado.status}
+                      onChange={(e) => alterarStatus(e.target.value)}
+                      disabled={salvandoAcao}
+                      className={`appearance-none pl-3 pr-8 py-1 rounded-full text-xs font-semibold border-2 outline-none cursor-pointer transition disabled:opacity-60 ${status.badge} ${status.borda || "border-transparent"}`}
+                    >
+                      <option value="ABERTO">Aberto</option>
+                      <option value="EM_ANDAMENTO">Em atendimento</option>
+                      <option value="RESOLVIDO">Resolvido</option>
+                      <option value="FECHADO">Fechado</option>
+                    </select>
+                    <ChevronDown size={13} className="absolute right-2.5 pointer-events-none" />
+                  </div>
+                ) : (
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${status.badge}`}>
+                    <StatusIcon size={13} className={chamado.status === "EM_ANDAMENTO" ? "animate-spin" : ""} />
+                    {status.label}
+                  </span>
+                )}
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${prioridade.badge}`}>
                   Prioridade {prioridade.label}
                 </span>
@@ -592,11 +578,6 @@ export default function DetalhesChamado() {
                 )}
               </div>
             </div>
-          </div>
-
-          {/* BARRA DE PROGRESSO */}
-          <div className="bg-white rounded-xl shadow-sm ring-1 ring-slate-200 p-6 mb-6 print:hidden">
-            <BarraDeProgresso status={chamado.status} />
           </div>
 
           {/* GRID PRINCIPAL */}
