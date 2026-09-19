@@ -21,6 +21,7 @@ import Header from "../../components/Header";
 import SlaBadge from "../../components/SlaBadge";
 import { useAuth } from "../../context/AuthContext";
 import { useRelogioTick } from "../../hooks/useRelogioTick";
+import { useChamadosGeraisSocket } from "../../hooks/useChamadosGeraisSocket";
 import { calcularSla, chaveUrgenciaSla } from "../../utils/sla";
 
 const AZUL_PRINCIPAL = "#2563EB";
@@ -181,6 +182,23 @@ export default function Chamados() {
     carregarFiltrosAuxiliares();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Tempo real: chamado novo aparece sozinho na lista, e alterações
+  // (status, prioridade, técnico...) atualizam o item existente — sem
+  // duplicar e sem precisar de F5. O backend já filtra o que cada
+  // perfil recebe (usuário só vê os próprios; técnico/admin veem todos).
+  useChamadosGeraisSocket(true, (evento) => {
+    const chamadoRecebido = evento?.chamado;
+    if (!chamadoRecebido) return;
+
+    setChamados((atual) => {
+      const jaExiste = atual.some((c) => c.id === chamadoRecebido.id);
+      if (jaExiste) {
+        return atual.map((c) => (c.id === chamadoRecebido.id ? chamadoRecebido : c));
+      }
+      return [chamadoRecebido, ...atual];
+    });
+  });
 
   async function aplicarFiltros(filtrosParaUsar = filtros) {
     setLoading(true);

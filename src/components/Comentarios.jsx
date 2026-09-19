@@ -11,7 +11,7 @@ const PERFIL_LABEL = {
   USUARIO: "Solicitante",
 };
 
-export default function Comentarios({ chamadoId, podeComentar = true }) {
+export default function Comentarios({ chamadoId, podeComentar = true, onChamadoAtualizado }) {
   const [comentarios, setComentarios] = useState([]);
   const [mensagem, setMensagem] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -35,13 +35,21 @@ export default function Comentarios({ chamadoId, podeComentar = true }) {
   }
 
   // Tempo real: qualquer mensagem nova (de qualquer um dos envolvidos)
-  // chega aqui automaticamente, sem precisar de F5.
-  const { conectado } = useChamadoSocket(chamadoId, (novaMensagem) => {
-    setComentarios((atual) => {
-      if (atual.some((c) => c.id === novaMensagem.id)) return atual;
-      return [...atual, novaMensagem];
-    });
-  });
+  // chega aqui automaticamente, sem precisar de F5. Na mesma conexão,
+  // também chegam eventos de atualização do próprio chamado (status,
+  // prioridade, técnico...), repassados pro componente pai.
+  const { conectado } = useChamadoSocket(
+    chamadoId,
+    (novaMensagem) => {
+      setComentarios((atual) => {
+        if (atual.some((c) => c.id === novaMensagem.id)) return atual;
+        return [...atual, novaMensagem];
+      });
+    },
+    (evento) => {
+      if (evento?.chamado) onChamadoAtualizado?.(evento.chamado);
+    }
+  );
 
   async function enviarComentario(e) {
     e.preventDefault();

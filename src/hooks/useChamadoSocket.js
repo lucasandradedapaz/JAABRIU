@@ -24,11 +24,21 @@ function montarUrlWebSocket(apiBaseURL) {
  *
  * Retorna { conectado } pra dar feedback visual discreto se necessário.
  */
-export function useChamadoSocket(chamadoId, onMensagem) {
+/**
+ * Conecta ao(s) tópico(s) STOMP de um chamado: mensagens do chat
+ * (onMensagem) e, na mesma conexão, eventos de atualização do próprio
+ * chamado — status, prioridade, técnico atribuído etc. (onEvento) —
+ * pra não abrir uma segunda conexão WebSocket à toa.
+ *
+ * Retorna { conectado } pra dar feedback visual discreto se necessário.
+ */
+export function useChamadoSocket(chamadoId, onMensagem, onEvento) {
   const [conectado, setConectado] = useState(false);
   const clientRef = useRef(null);
   const onMensagemRef = useRef(onMensagem);
   onMensagemRef.current = onMensagem;
+  const onEventoRef = useRef(onEvento);
+  onEventoRef.current = onEvento;
 
   useEffect(() => {
     if (!chamadoId) return;
@@ -36,40 +46,64 @@ export function useChamadoSocket(chamadoId, onMensagem) {
     const token = localStorage.getItem("token");
     if (!token) return;
 
-    const apiBaseURL = api.defaults.baseURL || "http://localhost:8081/api";
-    const wsUrl = montarUrlWebSocket(apiBaseURL);
+    let client;
 
-    const client = new Client({
-      brokerURL: wsUrl,
-      connectHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
-      reconnectDelay: 4000,
-      heartbeatIncoming: 10000,
-      heartbeatOutgoing: 10000,
-      onConnect: () => {
-        setConectado(true);
-        client.subscribe(`/topic/chamados/${chamadoId}/comentarios`, (frame) => {
+    try {
+      const apiBaseURL = api.defaults.baseURL || "http://localhost:8081/api";
+      const wsUrl = montarUrlWebSocket(apiBaseURL);
+
+      client = new Client({
+        brokerURL: wsUrl,
+        connectHeaders: {
+          Authorization: `Bearer ${token}`,
+        },
+        reconnectDelay: 4000,
+        heartbeatIncoming: 10000,
+        heartbeatOutgoing: 10000,
+        onConnect: () => {
+          setConectado(true);
           try {
-            const mensagem = JSON.parse(frame.body);
-            onMensagemRef.current?.(mensagem);
+            client.subscribe(`/topic/chamados/${chamadoId}/comentarios`, (frame) => {
+              try {
+                const mensagem = JSON.parse(frame.body);
+                onMensagemRef.current?.(mensagem);
+              } catch (error) {
+                console.log("Erro ao processar mensagem em tempo real:", error);
+              }
+            });
+            client.subscribe(`/topic/chamados/${chamadoId}/eventos`, (frame) => {
+              try {
+                const evento = JSON.parse(frame.body);
+                onEventoRef.current?.(evento);
+              } catch (error) {
+                console.log("Erro ao processar evento do chamado:", error);
+              }
+            });
           } catch (error) {
-            console.log("Erro ao processar mensagem em tempo real:", error);
+            console.log("Erro ao assinar tópicos do chamado:", error);
           }
-        });
-      },
-      onDisconnect: () => setConectado(false),
-      onWebSocketClose: () => setConectado(false),
-      onStompError: (frame) => {
-        console.log("Erro STOMP:", frame.headers?.message);
-      },
-    });
+        },
+        onDisconnect: () => setConectado(false),
+        onWebSocketClose: () => setConectado(false),
+        onStompError: (frame) => {
+          console.log("Erro STOMP:", frame.headers?.message);
+        },
+      });
 
-    client.activate();
-    clientRef.current = client;
+      client.activate();
+      clientRef.current = client;
+    } catch (error) {
+      // Se o WebSocket falhar, chat/detalhes continuam funcionando via
+      // REST (só sem atualização automática em tempo real).
+      console.log("Erro ao iniciar conexão do chamado:", error);
+    }
 
     return () => {
-      client.deactivate();
+      try {
+        client?.deactivate();
+      } catch (error) {
+        console.log("Erro ao encerrar conexão do chamado:", error);
+      }
       clientRef.current = null;
       setConectado(false);
     };

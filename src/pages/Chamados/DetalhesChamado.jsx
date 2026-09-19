@@ -709,7 +709,13 @@ export default function DetalhesChamado() {
               </div>
 
               {/* COMENTÁRIOS / ATENDIMENTO */}
-              <Comentarios chamadoId={id} podeComentar={podeInteragir} />
+              <Comentarios
+                chamadoId={id}
+                podeComentar={podeInteragir}
+                onChamadoAtualizado={(chamadoAtualizado) =>
+                  setChamado((atual) => ({ ...atual, ...chamadoAtualizado }))
+                }
+              />
             </div>
 
             {/* COLUNA LATERAL */}
