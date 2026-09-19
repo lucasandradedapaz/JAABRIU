@@ -11,15 +11,16 @@ function montarUrlWebSocket(apiBaseURL) {
 }
 
 /**
- * Conecta na fila privada de eventos de chamado do usuário logado
- * (/user/queue/chamados) e chama onEvento sempre que um chamado for criado
- * ou atualizado — sem precisar de F5. Usado pela lista de Chamados pra
- * manter tudo sincronizado em tempo real.
+ * Conecta pra receber chamados criados/atualizados em tempo real, usados
+ * pela lista de Chamados.
  *
- * O backend já filtra o que cada um recebe: usuário comum só recebe
- * eventos dos próprios chamados; técnico/admin recebem de todos.
+ * - Técnico/admin assinam "/topic/chamados/equipe" (tópico público, único
+ *   mecanismo STOMP que não depende de mapear usuário -> sessão, então é
+ *   o mais confiável pra manter a lista sempre certa).
+ * - Usuário comum assina só a fila privada dele ("/user/queue/chamados"),
+ *   recebendo somente os PRÓPRIOS chamados.
  */
-export function useChamadosGeraisSocket(ativo, onEvento) {
+export function useChamadosGeraisSocket(ativo, podeGerenciar, onEvento) {
   const [conectado, setConectado] = useState(false);
   const onEventoRef = useRef(onEvento);
   onEventoRef.current = onEvento;
@@ -28,13 +29,17 @@ export function useChamadosGeraisSocket(ativo, onEvento) {
     if (!ativo) return;
 
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      console.log("[WS chamados] sem token, não conecta.");
+      return;
+    }
 
     let client;
 
     try {
       const apiBaseURL = api.defaults.baseURL || "http://localhost:8081/api";
       const wsUrl = montarUrlWebSocket(apiBaseURL);
+      console.log("[WS chamados] conectando em", wsUrl);
 
       client = new Client({
         brokerURL: wsUrl,
@@ -46,42 +51,52 @@ export function useChamadosGeraisSocket(ativo, onEvento) {
         heartbeatOutgoing: 10000,
         onConnect: () => {
           setConectado(true);
+          const destino = podeGerenciar ? "/topic/chamados/equipe" : "/user/queue/chamados";
+          console.log("[WS chamados] conectado! Assinando", destino);
+
           try {
-            client.subscribe("/user/queue/chamados", (frame) => {
+            client.subscribe(destino, (frame) => {
+              console.log("[WS chamados] frame recebido:", frame.body);
               try {
                 const evento = JSON.parse(frame.body);
+                console.log("[WS chamados] evento convertido:", evento);
                 onEventoRef.current?.(evento);
               } catch (error) {
-                console.log("Erro ao processar evento de chamado:", error);
+                console.log("[WS chamados] erro ao converter evento:", error);
               }
             });
           } catch (error) {
-            console.log("Erro ao assinar fila de chamados:", error);
+            console.log("[WS chamados] erro ao assinar tópico:", error);
           }
         },
-        onDisconnect: () => setConectado(false),
-        onWebSocketClose: () => setConectado(false),
+        onDisconnect: () => {
+          console.log("[WS chamados] desconectado.");
+          setConectado(false);
+        },
+        onWebSocketClose: () => {
+          console.log("[WS chamados] conexão fechada.");
+          setConectado(false);
+        },
         onStompError: (frame) => {
-          console.log("Erro STOMP (chamados):", frame.headers?.message);
+          console.log("[WS chamados] erro STOMP:", frame.headers?.message);
         },
       });
 
       client.activate();
     } catch (error) {
-      // Se o WebSocket falhar, a lista continua funcionando via REST
-      // (só sem atualização automática em tempo real).
-      console.log("Erro ao iniciar conexão de chamados em tempo real:", error);
+      console.log("[WS chamados] erro ao iniciar conexão:", error);
     }
 
     return () => {
       try {
         client?.deactivate();
       } catch (error) {
-        console.log("Erro ao encerrar conexão de chamados:", error);
+        console.log("[WS chamados] erro ao encerrar conexão:", error);
       }
       setConectado(false);
     };
-  }, [ativo]);
+  }, [ativo, podeGerenciar]);
 
   return { conectado };
 }
+

@@ -185,11 +185,18 @@ export default function Chamados() {
 
   // Tempo real: chamado novo aparece sozinho na lista, e alterações
   // (status, prioridade, técnico...) atualizam o item existente — sem
-  // duplicar e sem precisar de F5. O backend já filtra o que cada
-  // perfil recebe (usuário só vê os próprios; técnico/admin veem todos).
-  useChamadosGeraisSocket(true, (evento) => {
+  // duplicar e sem precisar de F5. Técnico/admin escutam o tópico da
+  // equipe; usuário comum escuta só a fila privada dele.
+  useChamadosGeraisSocket(true, podeGerenciar, (evento) => {
     const chamadoRecebido = evento?.chamado;
-    if (!chamadoRecebido) return;
+    if (!chamadoRecebido) {
+      console.log("[Chamados.jsx] evento recebido sem 'chamado':", evento);
+      return;
+    }
+
+    console.log(
+      "[Chamados.jsx] atualizando lista com chamado #" + chamadoRecebido.id
+    );
 
     setChamados((atual) => {
       const jaExiste = atual.some((c) => c.id === chamadoRecebido.id);
